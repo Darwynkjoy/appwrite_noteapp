@@ -9,7 +9,7 @@ class Notepage extends StatefulWidget{
 class _NotepageState extends State<Notepage>{
 
   late AppwriteService _appwriteService;
-  late List<notesData> _Notes;
+  late List<notesData> _notes;
 
   String? _editingNoteId; // track the id of the Notes being edited
 
@@ -17,7 +17,7 @@ class _NotepageState extends State<Notepage>{
   void initState(){
     super.initState();
     _appwriteService=AppwriteService();
-    _Notes=[];
+    _notes=[];
     _loadNoteDetails();
   }
 
@@ -25,7 +25,7 @@ class _NotepageState extends State<Notepage>{
     try{
       final tasks=await _appwriteService.getEmployeeDetails();
       setState(() {
-        _Notes = tasks.map((e) => notesData.fromDocument(e)).toList();
+        _notes = tasks.map((e) => notesData.fromDocument(e)).toList();
       });
     }catch(e){
       print("error loading tasks:$e");
@@ -43,13 +43,13 @@ class _NotepageState extends State<Notepage>{
         if(_editingNoteId == null){
           await _appwriteService.addNote(Title, Subtitle, Category,Date);
         }else{
-          await _appwriteService.updateNote(Title, Subtitle, Category,Date,_editingNoteId!);
+          await _appwriteService.updateNote(_editingNoteId!,Title, Subtitle, Category,Date);
         }
           title.clear();
           subtitle.clear();
           category.clear();
           date.clear();
-          _editingNoteId == null;
+          _editingNoteId = null;
           _loadNoteDetails();
       }catch(e){
         print("error adding or Deleting task:$e");
@@ -92,9 +92,9 @@ TextEditingController date=TextEditingController();
         padding: const EdgeInsets.all(8.0),
         child: GridView.builder(gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,mainAxisSpacing: 10,crossAxisSpacing: 10,childAspectRatio: 0.6),
-          itemCount: _Notes.length,
+          itemCount: _notes.length,
           itemBuilder: (context,index){
-            final notesLists=_Notes[index];
+            final notesLists=_notes[index];
             return Container(
               decoration: BoxDecoration(border: Border.all(width: 2,color: const Color.fromARGB(255, 189, 142, 0)),borderRadius: BorderRadius.circular(10)),
               child: Padding(
@@ -110,9 +110,14 @@ TextEditingController date=TextEditingController();
                     children: [
                       Text("${notesLists.date}",style: TextStyle(fontSize: 20,color: const Color.fromARGB(255, 255, 191, 0))),
                       Spacer(),
+
                       IconButton(onPressed: (){
                         _editNoteDetails(notesLists);
+                        showModalBottomSheet(context: context, builder: (BuildContext context){
+                          return _showNoteForm();
+                        });
                       }, icon: Icon(Icons.edit,color: Colors.amber,)),
+
                       IconButton(onPressed: (){
                         _deleteNoteDetails(notesLists.id);
                       }, icon: Icon(Icons.delete,color: Colors.amber,))
@@ -129,8 +134,16 @@ TextEditingController date=TextEditingController();
         backgroundColor: Colors.amber,
         onPressed: (){
         showModalBottomSheet(context: context, builder: (BuildContext context){
-          return Container(
-            height: 300,
+          return _showNoteForm();
+        });
+      },
+      child: Icon(Icons.add,color: Colors.white,),),
+    );
+  }
+
+  Widget _showNoteForm(){
+    return Container(
+            height: 350,
             width: 410,
             child: Padding(
               padding: const EdgeInsets.all(8.0),
@@ -165,14 +178,10 @@ TextEditingController date=TextEditingController();
                     onPressed: (){
                       _addOrUpdateNoteDetails();
                       Navigator.pop(context);
-                    }, child: Text("ADD",style: TextStyle(fontSize: 20,color: Colors.white),))
+                    }, child: Text(_editingNoteId == null ? "Add" : "Update",style: TextStyle(fontSize: 20,color: Colors.white),))
                 ],
               ),
             ),
           );
-        });
-      },
-      child: Icon(Icons.add,color: Colors.white,),),
-    );
   }
 }
