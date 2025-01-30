@@ -1,3 +1,5 @@
+import 'package:appwrite_noteapp/appwrite.dart';
+import 'package:appwrite_noteapp/note_list.dart';
 import 'package:flutter/material.dart';
 
 class Notepage extends StatefulWidget{
@@ -5,6 +7,72 @@ class Notepage extends StatefulWidget{
   State<Notepage> createState()=> _NotepageState();
 }
 class _NotepageState extends State<Notepage>{
+
+  late AppwriteService _appwriteService;
+  late List<notesData> _Notes;
+
+  String? _editingNoteId; // track the id of the Notes being edited
+
+   @override
+  void initState(){
+    super.initState();
+    _appwriteService=AppwriteService();
+    _Notes=[];
+    _loadNoteDetails();
+  }
+
+  Future <void> _loadNoteDetails()async{
+    try{
+      final tasks=await _appwriteService.getEmployeeDetails();
+      setState(() {
+        _Notes = tasks.map((e) => notesData.fromDocument(e)).toList();
+      });
+    }catch(e){
+      print("error loading tasks:$e");
+    }
+  }
+
+  Future<void> _addOrUpdateNoteDetails()async{
+    final Title=title.text;
+    final Subtitle=subtitle.text;
+    final Category=category.text;
+    final Date=date.text;
+
+    if(Title.isNotEmpty && Subtitle.isNotEmpty && Category.isNotEmpty && Date.isNotEmpty){
+      try{
+        if(_editingNoteId == null){
+          await _appwriteService.addNote(Title, Subtitle, Category,Date);
+        }else{
+          await _appwriteService.updateNote(Title, Subtitle, Category,Date,_editingNoteId!);
+        }
+          title.clear();
+          subtitle.clear();
+          category.clear();
+          date.clear();
+          _editingNoteId == null;
+          _loadNoteDetails();
+      }catch(e){
+        print("error adding or Deleting task:$e");
+      }
+    }
+  }
+    Future<void> _deleteNoteDetails(String taskId)async{
+      try{
+        await _appwriteService.deleteNote(taskId);
+        _loadNoteDetails();
+      }catch(e){
+        print("error deleting task:$e");
+      }
+    }
+
+  void _editNoteDetails(notesData note){
+    title.text = note.title;
+    subtitle.text=note.subtitle;
+    category.text=note.category;
+    date.text=note.date;
+    _editingNoteId=note.id;
+  }
+
 
 TextEditingController title=TextEditingController();
 TextEditingController subtitle=TextEditingController();
@@ -24,8 +92,9 @@ TextEditingController date=TextEditingController();
         padding: const EdgeInsets.all(8.0),
         child: GridView.builder(gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,mainAxisSpacing: 10,crossAxisSpacing: 10,childAspectRatio: 0.6),
-          itemCount: 15,
+          itemCount: _Notes.length,
           itemBuilder: (context,index){
+            final notesLists=_Notes[index];
             return Container(
               decoration: BoxDecoration(border: Border.all(width: 2,color: const Color.fromARGB(255, 189, 142, 0)),borderRadius: BorderRadius.circular(10)),
               child: Padding(
@@ -33,16 +102,20 @@ TextEditingController date=TextEditingController();
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Title",style: TextStyle(fontSize: 22,fontWeight: FontWeight.bold,color: Colors.amber),overflow: TextOverflow.clip,),
-                  Text("Category",style: TextStyle(fontSize: 18),),
-                  Text("Subtitle",style: TextStyle(fontSize: 16),overflow: TextOverflow.clip,maxLines: 4,),
+                  Text("${notesLists.title}",style: TextStyle(fontSize: 22,fontWeight: FontWeight.bold,color: Colors.amber),overflow: TextOverflow.clip,),
+                  Text("${notesLists.category}",style: TextStyle(fontSize: 18),),
+                  Text("${notesLists.subtitle}",style: TextStyle(fontSize: 16),overflow: TextOverflow.clip,maxLines: 4,),
                   Spacer(),
                   Row(
                     children: [
-                      Text("date",style: TextStyle(fontSize: 20,color: const Color.fromARGB(255, 255, 191, 0))),
+                      Text("${notesLists.date}",style: TextStyle(fontSize: 20,color: const Color.fromARGB(255, 255, 191, 0))),
                       Spacer(),
-                      IconButton(onPressed: (){}, icon: Icon(Icons.edit,color: Colors.amber,)),
-                      IconButton(onPressed: (){}, icon: Icon(Icons.delete,color: Colors.amber,))
+                      IconButton(onPressed: (){
+                        _editNoteDetails(notesLists);
+                      }, icon: Icon(Icons.edit,color: Colors.amber,)),
+                      IconButton(onPressed: (){
+                        _deleteNoteDetails(notesLists.id);
+                      }, icon: Icon(Icons.delete,color: Colors.amber,))
                     ],
                   ),
                   
@@ -90,6 +163,7 @@ TextEditingController date=TextEditingController();
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))
                     ),
                     onPressed: (){
+                      _addOrUpdateNoteDetails();
                       Navigator.pop(context);
                     }, child: Text("ADD",style: TextStyle(fontSize: 20,color: Colors.white),))
                 ],
